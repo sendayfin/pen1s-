@@ -1,4 +1,3 @@
--- Летающий карандаш (без нарушений) — для Executor Delta, работает на телефоне
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -7,38 +6,37 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- Стиль R6 только
+-- Проверка R6
 if humanoid:GetAttribute("RigType") ~= "R6" then
-    warn("Этот скрипт работает только с R6-персонажами.")
+    warn("Только R6 персонажи поддерживаются!")
     return
 end
 
--- Скрыть оригинальное тело
+-- Скрываем оригинальное тело
 local function hideCharacter()
-    for _, child in ipairs(character:GetChildren()) do
-        if child:IsA("BasePart") or child:IsA("MeshPart") then
-            child.Transparency = 1
-            child.CanCollide = false
+    for _, part in ipairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Transparency = 1
+            part.CanCollide = false
         end
     end
 end
 hideCharacter()
 
--- Создаем карандаш из 3 частей: тело, грифель, резинка
+-- Создаём карандаш (одна часть — просто цилиндр)
 local pencil = Instance.new("Part")
 pencil.Name = "FlyingPencil"
 pencil.Shape = Enum.PartType.Cylinder
 pencil.Size = Vector3.new(0.4, 3, 0.4)
 pencil.Material = Enum.Material.Neon
-pencil.Color = Color3.fromRGB(255, 200, 100) -- желтый карандаш
+pencil.Color = Color3.fromRGB(255, 200, 100) -- жёлтый
 pencil.Anchored = true
 pencil.CanCollide = false
 pencil.Transparency = 0.1
 pencil.Locked = true
-pencil.CFrame = character.HumanoidRootPart.CFrame
 pencil.Parent = workspace
 
--- Грифель (черный кончик)
+-- Создаём грифель (чёрный кончик)
 local tip = Instance.new("Part")
 tip.Name = "PencilTip"
 tip.Shape = Enum.PartType.Cylinder
@@ -50,7 +48,7 @@ tip.CanCollide = false
 tip.CFrame = pencil.CFrame * CFrame.new(0, -1.3, 0)
 tip.Parent = workspace
 
--- Резинка (красная верхушка)
+-- Создаём резинку (красная верхушка)
 local eraser = Instance.new("Part")
 eraser.Name = "PencilEraser"
 eraser.Shape = Enum.PartType.Cylinder
@@ -62,7 +60,7 @@ eraser.CanCollide = false
 eraser.CFrame = pencil.CFrame * CFrame.new(0, 1.3, 0)
 eraser.Parent = workspace
 
--- Собираем всё в группу для удобства
+-- Группируем
 local pencilGroup = Instance.new("Folder")
 pencilGroup.Name = "FlyingPencilGroup"
 pencilGroup.Parent = workspace
@@ -70,89 +68,68 @@ pencil.Parent = pencilGroup
 tip.Parent = pencilGroup
 eraser.Parent = pencilGroup
 
--- Следим за позицией игрока
-local function updatePencilPosition()
+-- Привязываем карандаш к позиции игрока
+local function updatePencil()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
     local root = player.Character.HumanoidRootPart
     pencilGroup.CFrame = root.CFrame
 end
 
-RunService.Heartbeat:Connect(updatePencilPosition)
+RunService.Heartbeat:Connect(updatePencil)
 
--- Управление полетом: вверх/вниз по кнопкам
-local upButton = Instance.new("TextButton")
-upButton.Text = "↑"
-upButton.Size = UDim2.new(0, 80, 0, 60)
-upButton.Position = UDim2.new(1, -90, 0, 20)
-upButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-upButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-upButton.Font = Enum.Font.SourceSansBold
-upButton.BorderSizePixel = 0
-upButton.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- Кнопки управления
+local function createButton(text, y, color, callback)
+    local btn = Instance.new("TextButton")
+    btn.Text = text
+    btn.Size = UDim2.new(0, 80, 0, 60)
+    btn.Position = UDim2.new(1, -90, 0, y)
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.BorderSizePixel = 0
+    btn.Parent = player:WaitForChild("PlayerGui")
+    btn.MouseButton1Down:Connect(callback)
+    return btn
+end
 
-local downButton = Instance.new("TextButton")
-downButton.Text = "↓"
-downButton.Size = UDim2.new(0, 80, 0, 60)
-downButton.Position = UDim2.new(1, -90, 0, 90)
-downButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-downButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-downButton.Font = Enum.Font.SourceSansBold
-downButton.BorderSizePixel = 0
-downButton.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local flightSpeed = 15 -- скорость полета
-
-upButton.MouseButton1Down:Connect(function()
-    local currentCFrame = pencilGroup.CFrame
-    pencilGroup.CFrame = currentCFrame + Vector3.new(0, flightSpeed * 0.1, 0)
+local upBtn = createButton("↑", 20, Color3.fromRGB(50, 150, 255), function()
+    local cf = pencilGroup.CFrame
+    pencilGroup.CFrame = cf + Vector3.new(0, 0.5, 0)
 end)
 
-downButton.MouseButton1Down:Connect(function()
-    local currentCFrame = pencilGroup.CFrame
-    pencilGroup.CFrame = currentCFrame + Vector3.new(0, -flightSpeed * 0.1, 0)
+local downBtn = createButton("↓", 90, Color3.fromRGB(255, 100, 100), function()
+    local cf = pencilGroup.CFrame
+    pencilGroup.CFrame = cf + Vector3.new(0, -0.5, 0)
 end)
 
--- Управление полетом влево/вправо через виртуальный джойстик Roblox
--- Roblox автоматически создает джойстик на телефоне — мы его используем!
-local moveSpeed = 10
-
+-- Управление джойстиком (телефон)
+local moveSpeed = 8
 RunService.Heartbeat:Connect(function()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
 
     local root = player.Character.HumanoidRootPart
-    local moveVector = Vector3.new(0, 0, 0)
+    local joystick = UserInputService:GetUserInputState(Enum.UserInputType.VirtualRightThumb)
+    local delta = joystick.Position - Vector2.new(0.5, 0.5)
 
-    -- Проверяем ввод джойстика (только на мобильных)
-    if UserInputService:IsUserInputActive(Enum.UserInputType.VirtualRightThumb) then
-        local thumbInput = UserInputService:GetUserInputState(Enum.UserInputType.VirtualRightThumb)
-        local joystickDelta = thumbInput.Position - Vector2.new(0.5, 0.5) -- центр джойстика
-        moveVector = Vector3.new(joystickDelta.X * moveSpeed, 0, joystickDelta.Y * moveSpeed)
-    end
+    if delta.Magnitude > 0.1 then
+        local moveX = delta.X * moveSpeed * 0.05
+        local moveZ = delta.Y * moveSpeed * 0.05
+        local look = pencilGroup.CFrame.LookVector
+        local right = pencilGroup.CFrame.RightVector
 
-    -- Смещаем карандаш в сторону движения
-    if moveVector.Magnitude > 0 then
-        local newCFrame = pencilGroup.CFrame + (pencilGroup.CFrame.LookVector * moveVector.Z) + (pencilGroup.CFrame.RightVector * moveVector.X)
-        pencilGroup.CFrame = newCFrame
+        pencilGroup.CFrame = pencilGroup.CFrame + (look * moveZ) + (right * moveX)
     end
 end)
 
--- Убираем карандаш при смерти/выходе
-player.DescendantAdded:Connect(function(obj)
-    if obj:IsA("Humanoid") and obj.Health <= 0 then
-        wait(1)
-        if pencilGroup and pencilGroup.Parent then
-            pencilGroup:Destroy()
-        end
-    end
-end)
-
+-- Пересоздаём при смерти/спауне
 player.CharacterAdded:Connect(function(newChar)
-    wait(0.5)
-    if pencilGroup and pencilGroup.Parent then
-        pencilGroup:Destroy()
-    end
-    -- Пересоздаем
+    wait(0.1)
     hideCharacter()
+    pencilGroup:ClearAllChildren()
+    pencil:Destroy()
+    tip:Destroy()
+    eraser:Destroy()
+
     pencil = Instance.new("Part")
     pencil.Name = "FlyingPencil"
     pencil.Shape = Enum.PartType.Cylinder
@@ -195,18 +172,11 @@ player.CharacterAdded:Connect(function(newChar)
     eraser.Parent = pencilGroup
 end)
 
--- Убираем UI при выходе
+-- Убираем кнопки при выходе
 player:GetPropertyChangedSignal("Character"):Connect(function()
     if not player.Character then
         wait(0.5)
-        if pencilGroup and pencilGroup.Parent then
-            pencilGroup:Destroy()
-        end
-        if upButton and upButton.Parent then
-            upButton:Destroy()
-        end
-        if downButton and downButton.Parent then
-            downButton:Destroy()
-        end
+        if upBtn.Parent then upBtn:Destroy() end
+        if downBtn.Parent then downBtn:Destroy() end
     end
 end)
