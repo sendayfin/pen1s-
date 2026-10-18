@@ -83,7 +83,6 @@ author.Font = Enum.Font.Gotham
 author.TextXAlignment = Enum.TextXAlignment.Left
 author.Parent = topBar
 
--- Кнопка Свернуть
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Size = UDim2.new(0, 24, 0, 24)
 minimizeBtn.Position = UDim2.new(1, -34, 0, 10)
@@ -193,11 +192,13 @@ local function createEnvBtn(text, order)
     return btn
 end
 
+-- ВОТ ТУТ ВСЕ КНОПКИ
 local btnDay = createEnvBtn("Day", 0)
 local btnNight = createEnvBtn("Night", 1)
 local btnSunset = createEnvBtn("Sunset", 2)
-local btnSkeleton = createEnvBtn("Skeleton", 3)
-local btnReset = createEnvBtn("Reset", 4)
+local btnPink = createEnvBtn("Pink", 3)
+local btnSkeleton = createEnvBtn("Skeleton", 4)
+local btnReset = createEnvBtn("Reset", 5)
 
 -- ==========================================
 -- ЛОГИКА ВКЛАДОК
@@ -225,19 +226,17 @@ tabDrift.MouseButton1Click:Connect(function() switchTab("drift") end)
 tabEnv.MouseButton1Click:Connect(function() switchTab("env") end)
 
 -- ==========================================
--- СВЕРНУТЬ / РАЗВЕРНУТЬ (ИСПРАВЛЕНО)
+-- СВЕРНУТЬ / РАЗВЕРНУТЬ
 -- ==========================================
 minimizeBtn.MouseButton1Click:Connect(function()
     clickSound:Play()
     isMinimized = not isMinimized
     if isMinimized then
-        -- Прячем всё, кроме шапки
         TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 380, 0, 45)}):Play()
         tabHolder.Visible = false
         contentHolder.Visible = false
         minimizeBtn.Text = "+"
     else
-        -- Показываем обратно
         TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 380, 0, 260)}):Play()
         task.wait(0.15)
         tabHolder.Visible = true
@@ -307,16 +306,12 @@ toggleDriftBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- СКАЙБОКСЫ (ИСПРАВЛЕНО)
+-- СКАЙБОКСЫ
 -- ==========================================
 local function clearSkybox()
-    -- Удаляем ВСЕ скайбоксы
     for _, v in pairs(Lighting:GetChildren()) do
-        if v:IsA("Sky") then
-            v:Destroy()
-        end
+        if v:IsA("Sky") then v:Destroy() end
     end
-    -- Убираем цветовые фильтры
     local cc = Lighting:FindFirstChild("ColorEffect")
     if cc then cc:Destroy() end
 end
@@ -354,18 +349,24 @@ end)
 
 btnSunset.MouseButton1Click:Connect(function()
     clickSound:Play()
-    -- Горный закат
     applySkybox({
         Bk = "600830446", Dn = "600831635", Ft = "600832720",
         Lf = "600886090", Rt = "600833862", Up = "600835177"
     })
     Lighting.ClockTime = 17.5
     Lighting.Brightness = 1.5
-    
+end)
+
+btnPink.MouseButton1Click:Connect(function()
+    clickSound:Play()
+    clearSkybox()
+    Lighting.ClockTime = 17.5
+    Lighting.Brightness = 1.8
     local cc = Instance.new("ColorCorrectionEffect", Lighting)
     cc.Name = "ColorEffect"
-    cc.TintColor = Color3.fromRGB(255, 180, 200)
+    cc.TintColor = Color3.fromRGB(255, 150, 200)
     cc.Saturation = 0.3
+    cc.Contrast = 0.1
 end)
 
 btnSkeleton.MouseButton1Click:Connect(function()
@@ -391,4 +392,4 @@ LocalPlayer.CharacterAdded:Connect(function()
     screenGui:Destroy()
 end)
 
-print("Premium Drift UI V10 Loaded.")
+print("Premium Drift UI V12 Loaded. All Skys Included.")
