@@ -1,108 +1,95 @@
--- Drift Script for Brookhaven (Prototype)
--- Работает на мобильных устройствах (Delta)
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-
--- Настройки дрифта (можно менять)
-local DRIFT_FRICTION = 0.3 -- Чем меньше, тем сильнее скольжение
-local DRIFT_TORQUE = 5000   -- Сила заноса (угловая скорость)
-
-local isDrifting = false
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Создаем UI кнопку для мобильных устройств
+-- Настройки дрифта
+local DRIFT_FRICTION = 0.05 -- Почти нулевое трение (машина будет скользить как по льду)
+local DRIFT_TORQUE = 10     -- Сила заноса (угловая скорость)
+
+local isDrifting = false
+local currentVehicle = nil
+
+-- UI Кнопка (справа снизу, чтобы не мешать джойстику)
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "DriftControl"
 screenGui.ResetOnSpawn = false
 
 local driftButton = Instance.new("TextButton", screenGui)
 driftButton.Size = UDim2.new(0.2, 0, 0.1, 0)
-driftButton.Position = UDim2.new(0.1, 0, 0.7, 0)
+driftButton.Position = UDim2.new(0.75, 0, 0.6, 0) -- Сдвинули вправо!
 driftButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-driftButton.Text = "DRIFT"
+driftButton.Text = "DRIFT (OFF)"
 driftButton.TextScaled = true
 driftButton.Font = Enum.Font.GothamBold
 driftButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 driftButton.BorderSizePixel = 0
+Instance.new("UICorner", driftButton).CornerRadius = UDim.new(0, 10)
 
-local corner = Instance.new("UICorner", driftButton)
-corner.CornerRadius = UDim.new(0, 10)
-
--- Визуальный эффект дыма
-local smokeAttachment
-local smokeEmitter
-
--- Функция для применения физики дрифта к машине
-local function applyDriftPhysics(vehicle)
-    if not vehicle then return end
-    
-    -- Ищем колеса (обычно они называются Wheel или имеют HingeConstraint)
-    for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name:lower():find("wheel") then
-            -- 1. Уменьшаем трение, чтобы машина скользила
-            part.CustomPhysicalProperties = PhysicalProperties.new(0.7, DRIFT_FRICTION, 0.5, 1, 1)
-        end
+-- Функция поиска машины
+local function getVehicle()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.SeatPart then
+        return char.Humanoid.SeatPart.Parent
     end
-    
-    -- 2. Добавляем угловую скорость для заноса
-    local chassis = vehicle.PrimaryPart or vehicle:FindFirstChild("Chassis")
-    if chassis then
-        local currentVel = chassis.AssemblyAngularVelocity
-        chassis.AssemblyAngularVelocity = Vector3.new(currentVel.X, DRIFT_TORQUE, currentVel.Z)
+    return nil
+end
+
+-- Включение дрифта
+local function startDrift(vehicle)
+    if not vehicle then return end
+    -- Делаем ВСЕ детали машины скользкими
+    for _, part in pairs(vehicle:GetDescendants()) do
+        if part:IsA("BasePart") then
+            -- Убираем трение
+            part.CustomPhysicalProperties = PhysicalProperties.new(0.1, DRIFT_FRICTION, 0.1, 1, 1)
+        end
     end
 end
 
--- Функция для сброса физики в стандартное состояние
-local function resetPhysics(vehicle)
+-- Выключение дрифта (возвращаем сцепление)
+local function stopDrift(vehicle)
     if not vehicle then return end
     for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name:lower():find("wheel") then
-            part.CustomPhysicalProperties = nil -- Возвращаем стандартные свойства
+        if part:IsA("BasePart") then
+            part.CustomPhysicalProperties = nil -- Сбрасываем на стандартные
         end
-    end
-    local chassis = vehicle.PrimaryPart or vehicle:FindFirstChild("Chassis")
-    if chassis then
-        chassis.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
 end
 
--- Обработчик нажатия кнопки
-driftButton.MouseButton1Down:Connect(function()
-    isDrifting = true
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    -- Ищем машину, в которой сидит игрок
-    local vehicle = character:FindFirstChild("Humanoid") and character.Humanoid.SeatPart and character.Humanoid.SeatPart.Parent
-    if vehicle then
-        applyDriftPhysics(vehicle)
+-- Обработка нажатия (теперь это переключатель Toggle, не надо держать палец)
+driftButton.MouseButton1Click:Connect(function()
+    local vehicle = getVehicle()
+    if not vehicle then
+        driftButton.Text = "НЕТ МАШИНЫ"
+        task.wait(1)
+        driftButton.Text = isDrifting and "DRIFT (ON)" or "DRIFT (OFF)"
+        return
     end
-end)
 
-driftButton.MouseButton1Up:Connect(function()
-    isDrifting = false
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local vehicle = character:FindFirstChild("Humanoid") and character.Humanoid.SeatPart and character.Humanoid.SeatPart.Parent
-    if vehicle then
-        resetPhysics(vehicle)
-    end
-end)
+    isDrifting = not isDrifting
+    currentVehicle = vehicle
 
--- Цикл для обновления физики (для мобильных устройств, где кнопка может "залипать")
-RunService.Heartbeat:Connect(function()
     if isDrifting then
-        local character = LocalPlayer.Character
-        if not character then return end
-        
-        local vehicle = character:FindFirstChild("Humanoid") and character.Humanoid.SeatPart and character.Humanoid.SeatPart.Parent
-        if vehicle then
-            applyDriftPhysics(vehicle)
+        driftButton.Text = "DRIFT (ON)"
+        driftButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100) -- Зеленый при включении
+        startDrift(currentVehicle)
+    else
+        driftButton.Text = "DRIFT (OFF)"
+        driftButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Оранжевый при выключении
+        stopDrift(currentVehicle)
+    end
+end)
+
+-- Цикл для постоянного заноса во время движения
+RunService.Heartbeat:Connect(function()
+    if isDrifting and currentVehicle then
+        local chassis = currentVehicle.PrimaryPart or currentVehicle:FindFirstChildWhichIsA("BasePart")
+        if chassis then
+            -- Добавляем вращение (занос)
+            chassis.AssemblyAngularVelocity = Vector3.new(chassis.AssemblyAngularVelocity.X, DRIFT_TORQUE, chassis.AssemblyAngularVelocity.Z)
         end
     end
 end)
 
-print("Drift Script loaded! Press and hold DRIFT button to slide.")
+print("Drift Script V2 loaded!")
