@@ -3,21 +3,17 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Настройки дрифта
-local DRIFT_FRICTION = 0.05 -- Почти нулевое трение (машина будет скользить как по льду)
-local DRIFT_TORQUE = 10     -- Сила заноса (угловая скорость)
-
 local isDrifting = false
-local currentVehicle = nil
+local activeVehicle = nil
 
--- UI Кнопка (справа снизу, чтобы не мешать джойстику)
+-- Создаем UI (перенесли выше и правее, чтобы не мешать)
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "DriftControl"
 screenGui.ResetOnSpawn = false
 
 local driftButton = Instance.new("TextButton", screenGui)
-driftButton.Size = UDim2.new(0.2, 0, 0.1, 0)
-driftButton.Position = UDim2.new(0.75, 0, 0.6, 0) -- Сдвинули вправо!
+driftButton.Size = UDim2.new(0.25, 0, 0.1, 0)
+driftButton.Position = UDim2.new(0.7, 0, 0.2, 0) -- Безопасное место
 driftButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 driftButton.Text = "DRIFT (OFF)"
 driftButton.TextScaled = true
@@ -26,7 +22,7 @@ driftButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 driftButton.BorderSizePixel = 0
 Instance.new("UICorner", driftButton).CornerRadius = UDim.new(0, 10)
 
--- Функция поиска машины
+-- Поиск машины
 local function getVehicle()
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") and char.Humanoid.SeatPart then
@@ -35,61 +31,67 @@ local function getVehicle()
     return nil
 end
 
--- Включение дрифта
-local function startDrift(vehicle)
-    if not vehicle then return end
-    -- Делаем ВСЕ детали машины скользкими
-    for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") then
-            -- Убираем трение
-            part.CustomPhysicalProperties = PhysicalProperties.new(0.1, DRIFT_FRICTION, 0.1, 1, 1)
-        end
-    end
-end
-
--- Выключение дрифта (возвращаем сцепление)
-local function stopDrift(vehicle)
-    if not vehicle then return end
-    for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CustomPhysicalProperties = nil -- Сбрасываем на стандартные
-        end
-    end
-end
-
--- Обработка нажатия (теперь это переключатель Toggle, не надо держать палец)
 driftButton.MouseButton1Click:Connect(function()
-    local vehicle = getVehicle()
-    if not vehicle then
-        driftButton.Text = "НЕТ МАШИНЫ"
+    local veh = getVehicle()
+    if not veh then
+        driftButton.Text = "СЯДЬ В МАШИНУ"
         task.wait(1)
         driftButton.Text = isDrifting and "DRIFT (ON)" or "DRIFT (OFF)"
         return
     end
 
     isDrifting = not isDrifting
-    currentVehicle = vehicle
 
     if isDrifting then
         driftButton.Text = "DRIFT (ON)"
-        driftButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100) -- Зеленый при включении
-        startDrift(currentVehicle)
+        driftButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+        activeVehicle = veh
+        
+        -- Ищем главную часть машины (шасси)
+        local chassis = veh.PrimaryPart or veh:FindFirstChild("Chassis")
+        if not chassis then
+            local biggest = 0
+            for _, p in pairs(veh:GetChildren()) do
+                if p:IsA("BasePart") and p.Size.Magnitude > biggest then
+                    chassis = p
+                    biggest = p.Size.Magnitude
+                end
+            end
+        end
+        
+        if chassis then
+            -- Применяем физическую силу (занос)
+            local bAV = Instance.new("BodyAngularVelocity")
+            bAV.AngularVelocity = Vector3.new(0, 25, 0) -- Закручиваем машину
+            bAV.MaxTorque = Vector3.new(0, math.huge, 0) -- Огромная сила
+            bAV.Parent = chassis
+            
+            -- Добавляем дым из-под колес для эффекта
+            for _, p in pairs(veh:GetDescendants()) do
+                if p:IsA("BasePart") and (p.Name:lower():find("wheel") or p.Name:lower():find("tire")) then
+                    local smoke = Instance.new("Smoke")
+                    smoke.Parent = p
+                    smoke.Color = Color3.fromRGB(200, 200, 200)
+                    smoke.Size = 4
+                    smoke.RiseVelocity = 3
+                    smoke.Opacity = 0.5
+                end
+            end
+        end
     else
         driftButton.Text = "DRIFT (OFF)"
-        driftButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Оранжевый при выключении
-        stopDrift(currentVehicle)
-    end
-end)
-
--- Цикл для постоянного заноса во время движения
-RunService.Heartbeat:Connect(function()
-    if isDrifting and currentVehicle then
-        local chassis = currentVehicle.PrimaryPart or currentVehicle:FindFirstChildWhichIsA("BasePart")
-        if chassis then
-            -- Добавляем вращение (занос)
-            chassis.AssemblyAngularVelocity = Vector3.new(chassis.AssemblyAngularVelocity.X, DRIFT_TORQUE, chassis.AssemblyAngularVelocity.Z)
+        driftButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+        
+        -- Удаляем все силы и дым
+        if activeVehicle then
+            for _, child in pairs(activeVehicle:GetDescendants()) do
+                if child:IsA("BodyAngularVelocity") or child:IsA("Smoke") then
+                    child:Destroy()
+                end
+            end
         end
+        activeVehicle = nil
     end
 end)
 
-print("Drift Script V2 loaded!")
+print("Drift Script V3 (Real Physics) loaded!")
