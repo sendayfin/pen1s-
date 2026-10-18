@@ -6,7 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ==========================================
--- ПЕРЕМЕННЫЕ
+-- НАСТРОЙКИ
 -- ==========================================
 local normalGravity = 196.2
 local lowGravity = 50
@@ -96,7 +96,7 @@ minimizeBtn.Parent = topBar
 Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 6)
 
 -- ==========================================
--- ВКЛАДКИ (Навигация)
+-- ВКЛАДКИ
 -- ==========================================
 local tabHolder = Instance.new("Frame")
 tabHolder.Size = UDim2.new(0, 100, 1, -50)
@@ -195,7 +195,7 @@ end
 
 local btnDay = createEnvBtn("Day", 0)
 local btnNight = createEnvBtn("Night", 1)
-local btnPink = createEnvBtn("Pink", 2)
+local btnSunset = createEnvBtn("Sunset", 2)
 local btnSkeleton = createEnvBtn("Skeleton", 3)
 local btnReset = createEnvBtn("Reset", 4)
 
@@ -239,7 +239,7 @@ minimizeBtn.MouseButton1Click:Connect(function()
     else
         -- Показываем обратно
         TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 380, 0, 260)}):Play()
-        task.wait(0.15) -- Ждем, пока окно увеличится
+        task.wait(0.15)
         tabHolder.Visible = true
         contentHolder.Visible = true
         minimizeBtn.Text = "—"
@@ -307,97 +307,82 @@ toggleDriftBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- СКАЙБОКСЫ
+-- СКАЙБОКСЫ (ИСПРАВЛЕНО)
 -- ==========================================
-local function setSkybox(skyId)
-    clickSound:Play()
-    local oldSky = Lighting:FindFirstChild("CustomSky")
-    if oldSky then oldSky:Destroy() end
-    
-    if skyId then
-        local newSky = Instance.new("Sky")
-        newSky.Name = "CustomSky"
-        newSky.SkyboxBk = "rbxassetid://" .. skyId
-        newSky.SkyboxDn = "rbxassetid://" .. skyId
-        newSky.SkyboxFt = "rbxassetid://" .. skyId
-        newSky.SkyboxLf = "rbxassetid://" .. skyId
-        newSky.SkyboxRt = "rbxassetid://" .. skyId
-        newSky.SkyboxUp = "rbxassetid://" .. skyId
-        newSky.Parent = Lighting
+local function clearSkybox()
+    -- Удаляем ВСЕ скайбоксы
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("Sky") then
+            v:Destroy()
+        end
     end
+    -- Убираем цветовые фильтры
+    local cc = Lighting:FindFirstChild("ColorEffect")
+    if cc then cc:Destroy() end
+end
+
+local function applySkybox(ids)
+    clearSkybox()
+    local newSky = Instance.new("Sky")
+    newSky.Name = "CustomSky"
+    newSky.SkyboxBk = "rbxassetid://" .. ids.Bk
+    newSky.SkyboxDn = "rbxassetid://" .. ids.Dn
+    newSky.SkyboxFt = "rbxassetid://" .. ids.Ft
+    newSky.SkyboxLf = "rbxassetid://" .. ids.Lf
+    newSky.SkyboxRt = "rbxassetid://" .. ids.Rt
+    newSky.SkyboxUp = "rbxassetid://" .. ids.Up
+    newSky.CelestialBodiesShown = false 
+    newSky.Parent = Lighting
 end
 
 btnDay.MouseButton1Click:Connect(function()
+    clickSound:Play()
+    clearSkybox()
     Lighting.ClockTime = 14
     Lighting.Brightness = 2
-    setSkybox(nil)
-    local cc = Lighting:FindFirstChild("PinkEffect")
-    if cc then cc:Destroy() end
 end)
 
 btnNight.MouseButton1Click:Connect(function()
+    clickSound:Play()
+    applySkybox({
+        Bk = "1873090842", Dn = "1873090842", Ft = "1873090842",
+        Lf = "1873090842", Rt = "1873090842", Up = "1873090842"
+    })
     Lighting.ClockTime = 0
     Lighting.Brightness = 0.5
-    setSkybox("1873090842") -- Звездное небо
-    local cc = Lighting:FindFirstChild("PinkEffect")
-    if cc then cc:Destroy() end
 end)
 
-btnPink.MouseButton1Click:Connect(function()
+btnSunset.MouseButton1Click:Connect(function()
+    clickSound:Play()
+    -- Горный закат
+    applySkybox({
+        Bk = "600830446", Dn = "600831635", Ft = "600832720",
+        Lf = "600886090", Rt = "600833862", Up = "600835177"
+    })
     Lighting.ClockTime = 17.5
     Lighting.Brightness = 1.5
-    setSkybox(nil)
-    local cc = Lighting:FindFirstChild("PinkEffect") or Instance.new("ColorCorrectionEffect", Lighting)
-    cc.Name = "PinkEffect"
-    cc.TintColor = Color3.fromRGB(255, 150, 200)
-    cc.Saturation = 0.5
+    
+    local cc = Instance.new("ColorCorrectionEffect", Lighting)
+    cc.Name = "ColorEffect"
+    cc.TintColor = Color3.fromRGB(255, 180, 200)
+    cc.Saturation = 0.3
 end)
 
 btnSkeleton.MouseButton1Click:Connect(function()
+    clickSound:Play()
+    applySkybox({
+        Bk = "110544794736899", Dn = "110544794736899", Ft = "110544794736899",
+        Lf = "110544794736899", Rt = "110544794736899", Up = "110544794736899"
+    })
     Lighting.ClockTime = 0
     Lighting.Brightness = 0.2
-    setSkybox("110544794736899") -- Skeleton Sky [citation:14]
-    local cc = Lighting:FindFirstChild("PinkEffect")
-    if cc then cc:Destroy() end
 end)
 
 btnReset.MouseButton1Click:Connect(function()
     clickSound:Play()
+    clearSkybox()
     Lighting.ClockTime = 14
     Lighting.Brightness = 2
-    setSkybox(nil)
-    local cc = Lighting:FindFirstChild("PinkEffect")
-    if cc then cc:Destroy() end
-end)
-
--- ==========================================
--- ЗАМЕНА КНОПКИ ГАЗА (ТЕСТ)
--- ==========================================
--- Скрываем дефолтный TouchGui, если он есть (чтобы не мешал)
-local touchGui = playerGui:FindFirstChild("TouchGui")
-if touchGui then
-    -- Можно раскомментировать, чтобы скрыть стандартные кнопки полностью
-    -- touchGui.Enabled = false 
-end
-
--- Создаем свою кнопку газа (для теста)
-local gasBtn = Instance.new("TextButton")
-gasBtn.Size = UDim2.new(0, 80, 0, 80)
-gasBtn.Position = UDim2.new(1, -100, 1, -100) -- В правом нижнем углу
-gasBtn.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
-gasBtn.Text = "GAS"
-gasBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-gasBtn.Font = Enum.Font.GothamBold
-gasBtn.TextSize = 18
-gasBtn.Parent = screenGui
-Instance.new("UICorner", gasBtn).CornerRadius = UDim.new(1, 0) -- Круглая
-
--- Логика нажатия (эмулируем нажатие на педаль газа)
--- В Roblox нажатие на кнопку газа обычно триггерит VehicleSeat.Throttle
--- Но напрямую через UI это сложно. Для теста просто выведем сообщение.
-gasBtn.MouseButton1Down:Connect(function()
-    -- Здесь в будущем можно эмулировать нажатие
-    print("Gas pressed")
 end)
 
 -- Защита при смерти
@@ -406,4 +391,4 @@ LocalPlayer.CharacterAdded:Connect(function()
     screenGui:Destroy()
 end)
 
-print("Premium Drift UI V9 Loaded.")
+print("Premium Drift UI V10 Loaded.")
